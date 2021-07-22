@@ -1,0 +1,23 @@
+{
+  "runtimeTarget": {
+    "name": ".NETCoreApp,Version=v5.0",
+    "signature": ""
+  },
+  "compilationOptions": {},
+  "targets": {
+    ".NETCoreApp,Version=v5.0": {
+      "q2-dm-parser/1.0.0": {
+        "runtime": {
+          "q2-dm-parser.dll": {}
+        }
+      }
+    }
+  },
+  "libraries": {
+    "q2-dm-parser/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    }
+  }
+}
