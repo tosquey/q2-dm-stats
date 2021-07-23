@@ -14,7 +14,8 @@ namespace q2_dm_parser
         {
             get
             {
-                return this.Matches.SelectMany(a => a.Frags.Where(b => b.isSuicide)).Count(); //.All().Frags.Where(a => a.isSuicide).Count();
+                //return this.Matches.SelectMany(a => a.Frags.Where(b => b.Killer == this.Nick && b.isSuicide)).Count();
+                return this.Frags.Where(b => b.Killer == this.Nick && b.isSuicide).Count();
             }
         }
 
@@ -22,7 +23,8 @@ namespace q2_dm_parser
         {
             get
             {
-                return this.Matches.SelectMany(a => a.Frags.Where(b => !b.isSuicide)).Count() - Suicides;
+                //return this.Matches.SelectMany(a => a.Frags.Where(b => b.Killer == this.Nick && !b.isSuicide)).Count() - Suicides;
+                return this.Frags.Where(b => b.Killer == this.Nick && !b.isSuicide).Count() - this.Suicides;
             }
         }
 
@@ -30,7 +32,16 @@ namespace q2_dm_parser
         {
             get
             {
-                return this.Matches.SelectMany(a => a.Frags.Where(b => b.Killed == this.Nick)).Count();
+                //return this.Matches.SelectMany(a => a.Frags.Where(b => b.Killed == this.Nick)).Count();
+                return this.Frags.Where(a => a.Killed == this.Nick).Count() + this.Suicides;
+            }
+        }
+
+        public double Efficiency
+        {
+            get
+            {
+                return (double)((double)this.FragCount / (double)(this.FragCount + this.Deaths));
             }
         }
     }

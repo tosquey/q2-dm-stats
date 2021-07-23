@@ -41,10 +41,10 @@ namespace q2_dm_parser
                     }
                 }
 
-                var players = GetPlayers(frags);
+                var players = GetPlayers(frags, fileName);
                 foreach (var player in players.OrderByDescending(a => a.FragCount))
                 {
-                    report.WriteLine(string.Join(',', player.Nick, player.FragCount, player.Deaths));
+                    report.WriteLine(string.Join("\t", player.Nick, player.FragCount, player.Deaths));
                 }
 
                 report.WriteLine();
@@ -60,11 +60,12 @@ namespace q2_dm_parser
             Console.WriteLine("Done");
         }
 
-        static List<Player> GetPlayers(List<Frag> frags)
+        static List<Player> GetPlayers(List<Frag> frags, string mapName)
         {
-            Match match = new Match();
-            match.Map = "";
-            
+            //Match match = new Match();
+            //match.Map = mapName;
+            //match.Frags = frags.Where(a => g.Key == a.Killer || g.Key == a.Killed).ToList();
+
             return (from frag in frags
                 group frag by frag.Killer into g
                 select new Player
