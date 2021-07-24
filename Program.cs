@@ -9,25 +9,29 @@ namespace q2_dm_parser
 {
     class Program
     {
-        const string baseFolder = @"/Users/lmatto1/temp";
-        const string logFolder = @"/Users/lmatto1/temp/q2/";
-        const string reportsFolder = @"/Users/lmatto1/temp/";
+        const string logFolder = @"d:\temp\";
+        const string reportsFolder = @"d:\temp\reports\";
 
         static void Main(string[] args)
         {
+            
             string reportFile = string.Format("{0}{1}-{2}.txt", reportsFolder, "report", DateTime.Now.ToString("yyyy-MM-dd-hhmmssffff"));
             using StreamWriter report = new(reportFile, append: true);
 
             List<Frag> overallFrags = new List<Frag>();
-            string fileName;
-
+            List<Match> matches = new List<Match>();
+            
             foreach (var file in Directory.GetFiles(string.Format("{0}", logFolder), "*.txt").OrderBy(a => a))
             {
-                fileName = file.Split('/').Last().Replace(".txt", string.Empty);
-                Console.WriteLine(string.Format("Creating frag report from file {0}", fileName));
+                FileInfo fileInfo = new FileInfo(file);
+                string mapName = fileInfo.Name.Replace(".txt", string.Empty);
+                Console.WriteLine(string.Format("Creating frag report for map {0}", mapName));
+
+                Match match = new Match();
+                match.Map = mapName;
 
                 report.WriteLine("=========");
-                report.WriteLine(fileName);
+                report.WriteLine(mapName);
                 report.WriteLine("=========");
 
                 List<Frag> frags = new List<Frag>();
@@ -41,7 +45,7 @@ namespace q2_dm_parser
                     }
                 }
 
-                var players = GetPlayers(frags, fileName);
+                var players = GetPlayers(frags, mapName);
                 foreach (var player in players.OrderByDescending(a => a.FragCount))
                 {
                     report.WriteLine(string.Join("\t", player.Nick, player.FragCount, player.Deaths));
@@ -49,23 +53,22 @@ namespace q2_dm_parser
 
                 report.WriteLine();
 
-                GenerateWeaponStats(players, fileName);
-                BuildFragTimeline(frags, fileName);
+                match.Players.AddRange(players);
+
+                BuildFragTimeline(match);
+                matches.Add(match);
 
                 overallFrags.AddRange(frags);
             }
 
-            GenerateOpponentStats(overallFrags);
+            GenerateOpponentStats(matches.SelectMany(a => a.Players).SelectMany(b => b.Frags).ToList());
+            GenerateWeaponStats(matches);
 
             Console.WriteLine("Done");
         }
 
         static List<Player> GetPlayers(List<Frag> frags, string mapName)
         {
-            //Match match = new Match();
-            //match.Map = mapName;
-            //match.Frags = frags.Where(a => g.Key == a.Killer || g.Key == a.Killed).ToList();
-
             return (from frag in frags
                 group frag by frag.Killer into g
                 select new Player
@@ -75,13 +78,15 @@ namespace q2_dm_parser
                 }).ToList();
         }
 
-        static void BuildFragTimeline(List<Frag> frags, string mapFile)
+        static void BuildFragTimeline(Match match)
         {
-            Console.WriteLine(string.Format("Creating frag timeline from file {0}", mapFile));
-            string reportFile = string.Format("{0}{1}-{2}-{3}.csv", reportsFolder, "timeline-report", mapFile, DateTime.Now.ToString("yyyy-MM-dd-hhmmssffff"));
+            Console.WriteLine(string.Format("Creating frag timeline from file {0}", match.Map));
+            string reportFile = string.Format("{0}{1}-{2}-{3}.csv", reportsFolder, "timeline-report", match.Map, DateTime.Now.ToString("yyyy-MM-dd-hhmmssffff"));
             using StreamWriter report = new(reportFile, append: true);
 
-            DateTime[] timeline = frags.Select(a => a.Timestamp).Distinct().OrderBy(b => b).ToArray();
+            var frags = match.Players.SelectMany(a => a.Frags).ToList();
+
+            DateTime[] timeline = frags.Select(b => b.Timestamp).Distinct().OrderBy(c => c).ToArray();
 
             report.WriteLine(string.Concat("Player,", string.Join(',', timeline)));
 
@@ -177,48 +182,57 @@ namespace q2_dm_parser
             return frag;
         }
 
-        static void GenerateWeaponStats(List<Player> players, string mapFile)
+        static void GenerateWeaponStats(List<Match> matches)
         {
-            Console.WriteLine(string.Format("Creating weapon report from file {0}", mapFile));
+            string reportFile = string.Format("{0}{1}-{2}.txt", reportsFolder, "weapon-stats", DateTime.Now.ToString("yyyy-MM-dd-hhmmssffff"));
 
-            string reportFile = string.Format("{0}{1}-{2}-{3}.txt", reportsFolder, "weapon-stats", mapFile, DateTime.Now.ToString("yyyy-MM-dd-hhmmssffff"));
-            using StreamWriter report = new(reportFile, append: true);
+            foreach (var match in matches)
             {
-                report.WriteLine("==================");
-                report.WriteLine("Weapon frag stats:");
-                report.WriteLine("==================");
-                report.WriteLine();
+                List<Player> players = match.Players;
+                Console.WriteLine(string.Format("Creating weapon report for map {0}", match.Map));
 
-                foreach (var player in players)
+                using StreamWriter report = new(reportFile, append: true);
                 {
                     report.WriteLine("==================");
-                    report.WriteLine(player.Nick);
+                    report.WriteLine("Weapon frag stats:");
                     report.WriteLine("==================");
-
-                    //frags
-                    Dictionary<string, int> weapon = player.Frags.Where(z => !z.isSuicide)
-                        .GroupBy(a => a.Weapon)
-                        .ToDictionary(b => b.Key, b => b.Count());
-                    
-                    report.WriteLine("Frags:");
-                    foreach (var item in weapon)
-                    {
-                        report.WriteLine(string.Format("{0}: {1}", item.Key, item.Value));
-                    }
-
-                    //suicides
-                    weapon = player.Frags.Where(z => z.isSuicide)
-                        .GroupBy(a => a.Weapon)
-                        .ToDictionary(b => b.Key, b => b.Count());
-                    
                     report.WriteLine();
-                    report.WriteLine("Suicides:");
-                    foreach (var item in weapon)
-                    {
-                        report.WriteLine(string.Format("{0}: {1}", item.Key, item.Value));
-                    }
 
-                    report.WriteLine();
+                    foreach (var player in players)
+                    {
+                        report.WriteLine("==================");
+                        report.WriteLine(match.Map);
+                        report.WriteLine("==================");
+                        report.WriteLine();
+                        report.WriteLine("==================");
+                        report.WriteLine(player.Nick);
+                        report.WriteLine("==================");
+
+                        //frags
+                        Dictionary<string, int> weapon = player.Frags.Where(z => !z.isSuicide)
+                            .GroupBy(a => a.Weapon)
+                            .ToDictionary(b => b.Key, b => b.Count());
+                        
+                        report.WriteLine("Frags:");
+                        foreach (var item in weapon)
+                        {
+                            report.WriteLine(string.Format("{0}: {1}", item.Key, item.Value));
+                        }
+
+                        //suicides
+                        weapon = player.Frags.Where(z => z.isSuicide)
+                            .GroupBy(a => a.Weapon)
+                            .ToDictionary(b => b.Key, b => b.Count());
+                        
+                        report.WriteLine();
+                        report.WriteLine("Suicides:");
+                        foreach (var item in weapon)
+                        {
+                            report.WriteLine(string.Format("{0}: {1}", item.Key, item.Value));
+                        }
+
+                        report.WriteLine();
+                    }
                 }
             }
         }

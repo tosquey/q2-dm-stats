@@ -8,13 +8,11 @@ namespace q2_dm_parser
     {
         public string Nick { get; set; }
 
-        public List<Match> Matches { get; set; }
-        public List<Frag> Frags { get; set; }
+                public List<Frag> Frags { get; set; }
         public int Suicides
         {
             get
             {
-                //return this.Matches.SelectMany(a => a.Frags.Where(b => b.Killer == this.Nick && b.isSuicide)).Count();
                 return this.Frags.Where(b => b.Killer == this.Nick && b.isSuicide).Count();
             }
         }
@@ -23,7 +21,6 @@ namespace q2_dm_parser
         {
             get
             {
-                //return this.Matches.SelectMany(a => a.Frags.Where(b => b.Killer == this.Nick && !b.isSuicide)).Count() - Suicides;
                 return this.Frags.Where(b => b.Killer == this.Nick && !b.isSuicide).Count() - this.Suicides;
             }
         }
@@ -32,7 +29,6 @@ namespace q2_dm_parser
         {
             get
             {
-                //return this.Matches.SelectMany(a => a.Frags.Where(b => b.Killed == this.Nick)).Count();
                 return this.Frags.Where(a => a.Killed == this.Nick).Count() + this.Suicides;
             }
         }
