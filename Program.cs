@@ -22,7 +22,6 @@ namespace q2_dm_parser
             
             foreach (var item in GetMatches(logFile))
             {
-                //FileInfo fileInfo = new FileInfo(file);
                 string mapName = item.Key;
                 Console.WriteLine(string.Format("Creating frag report for map {0}", mapName));
 
@@ -71,7 +70,7 @@ namespace q2_dm_parser
             bool moveOn = false;
             string map = string.Empty;
 
-            Regex regexStart = new Regex(@"\[[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9] [0-9][0-9]:[0-9][0-9]\] gamemap (\S+.*)");
+            Regex regexStart = new Regex(@"\[([0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9] [0-9][0-9]:[0-9][0-9])\] gamemap (\S+.*)");
             Regex regexEnd = new Regex(@"\[[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9] [0-9][0-9]:[0-9][0-9]\] Timelimit hit.");
             System.Text.RegularExpressions.Match regexStartMatch, regexEndMatch;
 
@@ -85,7 +84,7 @@ namespace q2_dm_parser
                     {
                         moveOn = true;
                         contents = new List<string>();
-                        map = regexStartMatch.Groups[1].Value;
+                        map = string.Join('_', regexStartMatch.Groups[2].Value, regexStartMatch.Groups[1].Value.Replace(' ', '-').Replace(":", string.Empty));
                     }
                 }
                 else
@@ -261,12 +260,13 @@ namespace q2_dm_parser
                     report.WriteLine("==================");
                     report.WriteLine();
 
+                    report.WriteLine("==================");
+                    report.WriteLine(match.Map);
+                    report.WriteLine("==================");
+                    report.WriteLine();
+
                     foreach (var player in players)
                     {
-                        report.WriteLine("==================");
-                        report.WriteLine(match.Map);
-                        report.WriteLine("==================");
-                        report.WriteLine();
                         report.WriteLine("==================");
                         report.WriteLine(player.Nick);
                         report.WriteLine("==================");
@@ -276,10 +276,13 @@ namespace q2_dm_parser
                             .GroupBy(a => a.Weapon)
                             .ToDictionary(b => b.Key, b => b.Count());
                         
-                        report.WriteLine("Frags:");
-                        foreach (var item in weapon)
+                        if (weapon.Count > 0)
                         {
-                            report.WriteLine(string.Format("{0}: {1}", item.Key, item.Value));
+                            report.WriteLine("Frags:");
+                            foreach (var item in weapon)
+                            {
+                                report.WriteLine(string.Format("{0}: {1}", item.Key, item.Value));
+                            }
                         }
 
                         //suicides
@@ -287,11 +290,14 @@ namespace q2_dm_parser
                             .GroupBy(a => a.Weapon)
                             .ToDictionary(b => b.Key, b => b.Count());
                         
-                        report.WriteLine();
-                        report.WriteLine("Suicides:");
-                        foreach (var item in weapon)
+                        if (weapon.Count > 0)
                         {
-                            report.WriteLine(string.Format("{0}: {1}", item.Key, item.Value));
+                            report.WriteLine();
+                            report.WriteLine("Suicides:");
+                            foreach (var item in weapon)
+                            {
+                                report.WriteLine(string.Format("{0}: {1}", item.Key, item.Value));
+                            }
                         }
 
                         report.WriteLine();
