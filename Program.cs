@@ -9,8 +9,8 @@ namespace q2_dm_parser
 {
     class Program
     {
-        const string logFolder = @"d:\temp\";
-        const string reportsFolder = @"d:\temp\reports\";
+        const string logFile = @"/Users/lmatto1/temp/q2/openffa1.log";
+        const string reportsFolder = @"/Users/lmatto1/temp/";
 
         static void Main(string[] args)
         {
@@ -20,10 +20,10 @@ namespace q2_dm_parser
             List<Frag> overallFrags = new List<Frag>();
             List<Match> matches = new List<Match>();
             
-            foreach (var file in Directory.GetFiles(string.Format("{0}", logFolder), "*.txt").OrderBy(a => a))
+            foreach (var item in GetMatches(logFile))
             {
-                FileInfo fileInfo = new FileInfo(file);
-                string mapName = fileInfo.Name.Replace(".txt", string.Empty);
+                //FileInfo fileInfo = new FileInfo(file);
+                string mapName = item.Key;
                 Console.WriteLine(string.Format("Creating frag report for map {0}", mapName));
 
                 Match match = new Match();
@@ -33,16 +33,7 @@ namespace q2_dm_parser
                 report.WriteLine(mapName);
                 report.WriteLine("=========");
 
-                List<Frag> frags = new List<Frag>();
-
-                foreach (string line in File.ReadAllLines(file))
-                {
-                    var frag = GetFrag(line);
-                    if (frag != null)
-                    {
-                        frags.Add(frag);
-                    }
-                }
+                List<Frag> frags = GetFrags(item.Value);
 
                 var players = GetPlayers(frags, mapName);
                 foreach (var player in players.OrderByDescending(a => a.FragCount))
@@ -62,8 +53,15 @@ namespace q2_dm_parser
 
             GenerateOpponentStats(matches);
             GenerateWeaponStats(matches);
+            WriteAllPlayers(matches);
 
             Console.WriteLine("Done");
+        }
+
+        static void WriteAllPlayers(List<Match> matches)
+        {
+            string reportFile = string.Format("{0}{1}-{2}.txt", reportsFolder, "all-players", DateTime.Now.ToString("yyyy-MM-dd-hhmmssffff"));
+            File.WriteAllLines(reportFile, matches.SelectMany(a => a.Players).Select(b => b.Nick).Distinct().OrderBy(c => c));
         }
 
         static Dictionary<string, List<string>> GetMatches(string logfile)
@@ -74,7 +72,7 @@ namespace q2_dm_parser
             string map = string.Empty;
 
             Regex regexStart = new Regex(@"\[[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9] [0-9][0-9]:[0-9][0-9]\] gamemap (\S+.*)");
-            Regex regexEnd = new Regex(@"\[[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9] [0-9][0-9]:[0-9][0-9]\] Rcon from");
+            Regex regexEnd = new Regex(@"\[[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9] [0-9][0-9]:[0-9][0-9]\] Timelimit hit.");
             System.Text.RegularExpressions.Match regexStartMatch, regexEndMatch;
 
             foreach (string line in File.ReadAllLines(logfile))
@@ -86,7 +84,7 @@ namespace q2_dm_parser
                     if (regexStartMatch.Success)
                     {
                         moveOn = true;
-                        mapContents = new Dictionary<string, List<string>>();
+                        contents = new List<string>();
                         map = regexStartMatch.Groups[1].Value;
                     }
                 }
@@ -96,7 +94,14 @@ namespace q2_dm_parser
                     if (regexEndMatch.Success)
                     {
                         moveOn = false;
-                        mapContents.Add(map, contents);
+                        if (!mapContents.ContainsKey(map))
+                        {
+                            mapContents.Add(map, contents);
+                        }
+                        else
+                        {
+                            Console.WriteLine(string.Format("Não fode, mapa {0} duplicado no log porra.", map));
+                        }
                     }
                 }
 
