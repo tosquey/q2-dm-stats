@@ -14,7 +14,6 @@ namespace q2_dm_parser
 
         static void Main(string[] args)
         {
-            
             string reportFile = string.Format("{0}{1}-{2}.txt", reportsFolder, "report", DateTime.Now.ToString("yyyy-MM-dd-hhmmssffff"));
             using StreamWriter report = new(reportFile, append: true);
 
@@ -61,10 +60,69 @@ namespace q2_dm_parser
                 overallFrags.AddRange(frags);
             }
 
-            GenerateOpponentStats(matches.SelectMany(a => a.Players).SelectMany(b => b.Frags).ToList());
+            GenerateOpponentStats(matches);
             GenerateWeaponStats(matches);
 
             Console.WriteLine("Done");
+        }
+
+        static Dictionary<string, List<string>> GetMatches(string logfile)
+        {
+            Dictionary<string, List<string>> mapContents = new Dictionary<string, List<string>>();
+            List<string> contents = new List<string>();
+            bool moveOn = false;
+            string map = string.Empty;
+
+            Regex regexStart = new Regex(@"\[[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9] [0-9][0-9]:[0-9][0-9]\] gamemap (\S+.*)");
+            Regex regexEnd = new Regex(@"\[[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9] [0-9][0-9]:[0-9][0-9]\] Rcon from");
+            System.Text.RegularExpressions.Match regexStartMatch, regexEndMatch;
+
+            foreach (string line in File.ReadAllLines(logfile))
+            {
+                if (!moveOn)
+                {
+                    regexStartMatch = regexStart.Match(line);
+
+                    if (regexStartMatch.Success)
+                    {
+                        moveOn = true;
+                        mapContents = new Dictionary<string, List<string>>();
+                        map = regexStartMatch.Groups[1].Value;
+                    }
+                }
+                else
+                {
+                    regexEndMatch = regexEnd.Match(line);
+                    if (regexEndMatch.Success)
+                    {
+                        moveOn = false;
+                        mapContents.Add(map, contents);
+                    }
+                }
+
+                if (moveOn)
+                {
+                    contents.Add(line);
+                }
+            }
+
+            return mapContents;
+        }
+
+        static List<Frag> GetFrags(List<string> contents)
+        {
+            List<Frag> frags = new List<Frag>();
+
+            foreach (string line in contents)
+            {
+                var frag = GetFrag(line);
+                if (frag != null)
+                {
+                    frags.Add(frag);
+                }
+            }
+
+            return frags;
         }
 
         static List<Player> GetPlayers(List<Frag> frags, string mapName)
@@ -237,8 +295,10 @@ namespace q2_dm_parser
             }
         }
 
-        static void GenerateOpponentStats(List<Frag> frags)
+        static void GenerateOpponentStats(List<Match> matches)
         {
+            var frags = matches.SelectMany(a => a.Players).SelectMany(b => b.Frags).ToList();
+
             Console.WriteLine("Creating opponent report");
             string reportFile = string.Format("{0}{1}-{2}.csv", reportsFolder, "opponent-report", DateTime.Now.ToString("yyyy-MM-dd-hhmmssffff"));
             using StreamWriter report = new(reportFile, append: true);
