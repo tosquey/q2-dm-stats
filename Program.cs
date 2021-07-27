@@ -14,48 +14,28 @@ namespace q2_dm_parser
 
         static void Main(string[] args)
         {
-            string reportFile = string.Format("{0}{1}-{2}.txt", reportsFolder, "report", DateTime.Now.ToString("yyyy-MM-dd-hhmmssffff"));
-            using StreamWriter report = new(reportFile, append: true);
-
-            List<Frag> overallFrags = new List<Frag>();
             List<Match> matches = new List<Match>();
             
             foreach (var item in GetMatches(logFile))
             {
-                string mapName = item.Key;
-                Console.WriteLine(string.Format("Creating frag report for map {0}", mapName));
-
                 Match match = new Match();
-                match.Map = mapName;
-
-                report.WriteLine("=========");
-                report.WriteLine(mapName);
-                report.WriteLine("=========");
+                match.Map = item.Key;
 
                 List<Frag> frags = GetFrags(item.Value);
-
-                var players = GetPlayers(frags, mapName);
-                foreach (var player in players.OrderByDescending(a => a.FragCount))
-                {
-                    report.WriteLine(string.Join("\t", player.Nick, player.FragCount, player.Deaths));
-                }
-
-                report.WriteLine();
-
-                match.Players.AddRange(players);
-
-                BuildFragTimeline(match);
+                match.Players.AddRange(GetPlayers(frags, item.Key));
                 matches.Add(match);
-
-                overallFrags.AddRange(frags);
             }
 
+            GenerateMapStats(matches);
             GenerateOpponentStats(matches);
             GenerateWeaponStats(matches);
             WriteAllPlayers(matches);
+            BuildFragTimeline(matches);
 
             Console.WriteLine("Done");
         }
+
+        
 
         static void WriteAllPlayers(List<Match> matches)
         {
@@ -140,34 +120,37 @@ namespace q2_dm_parser
                 }).ToList();
         }
 
-        static void BuildFragTimeline(Match match)
+        static void BuildFragTimeline(List<Match> matches)
         {
-            Console.WriteLine(string.Format("Creating frag timeline from file {0}", match.Map));
-            string reportFile = string.Format("{0}{1}-{2}-{3}.csv", reportsFolder, "timeline-report", match.Map, DateTime.Now.ToString("yyyy-MM-dd-hhmmssffff"));
-            using StreamWriter report = new(reportFile, append: true);
-
-            var frags = match.Players.SelectMany(a => a.Frags).ToList();
-
-            DateTime[] timeline = frags.Select(b => b.Timestamp).Distinct().OrderBy(c => c).ToArray();
-
-            report.WriteLine(string.Concat("Player,", string.Join(',', timeline)));
-
-            foreach (string player in frags.Select(a => a.Killer).Distinct().OrderBy(b => b))
+            foreach (var match in matches)
             {
-                Dictionary<DateTime, int> tl = new Dictionary<DateTime, int>();
-                int fragCount = 0;
+                Console.WriteLine(string.Format("Creating frag timeline from file {0}", match.Map));
+                string reportFile = string.Format("{0}{1}-{2}-{3}.csv", reportsFolder, "timeline-report", match.Map, DateTime.Now.ToString("yyyy-MM-dd-hhmmssffff"));
+                using StreamWriter report = new(reportFile, append: true);
 
-                foreach (DateTime timestamp in timeline)
+                var frags = match.Players.SelectMany(a => a.Frags).ToList();
+
+                DateTime[] timeline = frags.Select(b => b.Timestamp).Distinct().OrderBy(c => c).ToArray();
+
+                report.WriteLine(string.Concat("Player,", string.Join(',', timeline)));
+
+                foreach (string player in frags.Select(a => a.Killer).Distinct().OrderBy(b => b))
                 {
-                    var kills = frags.Where(a => a.Killer == player && a.Timestamp == timestamp && !a.isSuicide).Count();
-                    var suicides = frags.Where(a => a.Killer == player && a.Timestamp == timestamp && a.isSuicide).Count();
+                    Dictionary<DateTime, int> tl = new Dictionary<DateTime, int>();
+                    int fragCount = 0;
 
-                    fragCount += kills - suicides;
+                    foreach (DateTime timestamp in timeline)
+                    {
+                        var kills = frags.Where(a => a.Killer == player && a.Timestamp == timestamp && !a.isSuicide).Count();
+                        var suicides = frags.Where(a => a.Killer == player && a.Timestamp == timestamp && a.isSuicide).Count();
 
-                    tl.Add(timestamp, fragCount);
+                        fragCount += kills - suicides;
+
+                        tl.Add(timestamp, fragCount);
+                    }
+
+                    report.WriteLine(string.Concat(player, ",", string.Join(',', tl.Values)));
                 }
-
-                report.WriteLine(string.Concat(player, ",", string.Join(',', tl.Values)));
             }
         }
 
@@ -242,6 +225,32 @@ namespace q2_dm_parser
             }
 
             return frag;
+        }
+
+        static void GenerateMapStats(List<Match> matches)
+        {
+            string reportFile = string.Format("{0}{1}-{2}.txt", reportsFolder, "report", DateTime.Now.ToString("yyyy-MM-dd-hhmmssffff"));
+
+            foreach (var match in matches)
+            {
+                List<Player> players = match.Players;
+                
+                Console.WriteLine(string.Format("Creating frag report for map {0}", match.Map));
+
+                using StreamWriter report = new(reportFile, append: true);
+                {
+                    report.WriteLine("=========");
+                    report.WriteLine(match.Map);
+                    report.WriteLine("=========");
+                    
+                    foreach (var player in match.Players.OrderByDescending(a => a.FragCount))
+                    {
+                        report.WriteLine(string.Join("\t", player.Nick, player.FragCount, player.Deaths));
+                    }
+
+                    report.WriteLine();
+                }
+            }
         }
 
         static void GenerateWeaponStats(List<Match> matches)
