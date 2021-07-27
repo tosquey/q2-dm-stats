@@ -14,17 +14,7 @@ namespace q2_dm_parser
 
         static void Main(string[] args)
         {
-            List<Match> matches = new List<Match>();
-            
-            foreach (var item in GetMatches(logFile))
-            {
-                Match match = new Match();
-                match.Map = item.Key;
-
-                List<Frag> frags = GetFrags(item.Value);
-                match.Players.AddRange(GetPlayers(frags, item.Key));
-                matches.Add(match);
-            }
+            List<Match> matches = GetMatches(logFile);
 
             GenerateMapStats(matches);
             GenerateOpponentStats(matches);
@@ -35,7 +25,6 @@ namespace q2_dm_parser
             Console.WriteLine("Done");
         }
 
-        
 
         static void WriteAllPlayers(List<Match> matches)
         {
@@ -43,12 +32,12 @@ namespace q2_dm_parser
             File.WriteAllLines(reportFile, matches.SelectMany(a => a.Players).Select(b => b.Nick).Distinct().OrderBy(c => c));
         }
 
-        static Dictionary<string, List<string>> GetMatches(string logfile)
+        static List<Match> GetMatches(string logfile)
         {
-            Dictionary<string, List<string>> mapContents = new Dictionary<string, List<string>>();
-            List<string> contents = new List<string>();
+            List<Match> matches = new List<Match>();
+            List<Frag> frags = new List<Frag>();
             bool moveOn = false;
-            string map = string.Empty;
+            Match match = new Match();
 
             Regex regexStart = new Regex(@"\[([0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9] [0-9][0-9]:[0-9][0-9])\] gamemap (\S+.*)");
             Regex regexEnd = new Regex(@"\[[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9] [0-9][0-9]:[0-9][0-9]\] Timelimit hit.");
@@ -63,8 +52,9 @@ namespace q2_dm_parser
                     if (regexStartMatch.Success)
                     {
                         moveOn = true;
-                        contents = new List<string>();
-                        map = string.Join('_', regexStartMatch.Groups[2].Value, regexStartMatch.Groups[1].Value.Replace(' ', '-').Replace(":", string.Empty));
+                        frags = new List<Frag>();
+                        match = new Match();
+                        match.Map = string.Join('_', regexStartMatch.Groups[2].Value, regexStartMatch.Groups[1].Value.Replace(' ', '-').Replace(":", string.Empty));
                     }
                 }
                 else
@@ -73,40 +63,22 @@ namespace q2_dm_parser
                     if (regexEndMatch.Success)
                     {
                         moveOn = false;
-                        if (!mapContents.ContainsKey(map))
-                        {
-                            mapContents.Add(map, contents);
-                        }
-                        else
-                        {
-                            Console.WriteLine(string.Format("Não fode, mapa {0} duplicado no log porra.", map));
-                        }
+                        match.Players.AddRange(GetPlayers(frags, match.Map));
+                        matches.Add(match);
                     }
                 }
 
                 if (moveOn)
                 {
-                    contents.Add(line);
+                    var frag = GetFrag(line);
+                    if (frag != null)
+                    {
+                        frags.Add(frag);
+                    }
                 }
             }
 
-            return mapContents;
-        }
-
-        static List<Frag> GetFrags(List<string> contents)
-        {
-            List<Frag> frags = new List<Frag>();
-
-            foreach (string line in contents)
-            {
-                var frag = GetFrag(line);
-                if (frag != null)
-                {
-                    frags.Add(frag);
-                }
-            }
-
-            return frags;
+            return matches;
         }
 
         static List<Player> GetPlayers(List<Frag> frags, string mapName)
