@@ -9,8 +9,8 @@ namespace q2_dm_parser
 {
     class Program
     {
-        const string logFile = @"/Users/lmatto1/temp/q2/openffa1.log";
-        const string reportsFolder = @"/Users/lmatto1/temp/";
+        const string logFile = @"d:\temp\openffarail.log";
+        const string reportsFolder = @"d:\temp\reports\";
 
         static void Main(string[] args)
         {
@@ -189,6 +189,7 @@ namespace q2_dm_parser
                     frag = new Frag();
                     frag.Timestamp = Convert.ToDateTime(match.Groups[1].Value);
                     frag.Killer = match.Groups[2].Value;
+                    frag.Killed = string.Empty;
                     frag.Weapon = item.Value;
                     frag.isSuicide = true;
 
@@ -290,6 +291,7 @@ namespace q2_dm_parser
         static void GenerateOpponentStats(List<Match> matches)
         {
             var frags = matches.SelectMany(a => a.Players).SelectMany(b => b.Frags).ToList();
+            var players = matches.SelectMany(a => a.Players).ToList();
 
             Console.WriteLine("Creating opponent report");
             string reportFile = string.Format("{0}{1}-{2}.csv", reportsFolder, "opponent-report", DateTime.Now.ToString("yyyy-MM-dd-hhmmssffff"));
@@ -302,7 +304,7 @@ namespace q2_dm_parser
             
             foreach (var player in frags.Select(a => a.Killer).Distinct().OrderBy(b => b))
             {
-                Dictionary<string, int> opponents = frags.Where(a => a.Killer == player && !string.IsNullOrEmpty(a.Killed))
+                Dictionary<string, int> opponents = players.Where(a => a.Nick == player).SelectMany(b => b.Frags).Where(c => c.Killed != player)
                     .GroupBy(b => b.Killed)
                     .ToDictionary(c => c.Key, c => c.Count());
                 
