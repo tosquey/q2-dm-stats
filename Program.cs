@@ -9,7 +9,10 @@ namespace q2_dm_parser
 {
     class Program
     {
+        //log file to be read by the parser (standard openffa/opentdm log file)
         const string logFile = @"d:\temp\openffa1.log";
+
+        //location where all the reports will be saved
         const string reportsFolder = @"d:\temp\reports\";
 
         static void Main(string[] args)
@@ -25,13 +28,14 @@ namespace q2_dm_parser
             Console.WriteLine("Done");
         }
 
-
+        /// <summary>Builds a simple list of all players found in the log file</summary>
         static void WriteAllPlayers(List<Match> matches)
         {
             string reportFile = string.Format("{0}{1}-{2}.txt", reportsFolder, "all-players", DateTime.Now.ToString("yyyy-MM-dd-hhmmssffff"));
             File.WriteAllLines(reportFile, matches.SelectMany(a => a.Players).Select(b => b.Nick).Distinct().OrderBy(c => c));
         }
 
+        /// <summary>Returns a list of all matches found in the logfile. CAVEAT: the standard opentdm/openffa logs don't have a clear indication on when a match begins. This method is looking for the manual "gamemap" command, which is what we use via rcon when running our tournaments in Brazil</summary>
         static List<Match> GetMatches(string logfile)
         {
             List<Match> matches = new List<Match>();
@@ -81,6 +85,7 @@ namespace q2_dm_parser
             return matches;
         }
 
+        /// <summary>Returns the individual list of players for a map, based on all the frags identified in the log</summary>
         static List<Player> GetPlayers(List<Frag> frags, string mapName)
         {
             return (from frag in frags
@@ -92,6 +97,7 @@ namespace q2_dm_parser
                 }).ToList();
         }
 
+        /// <summary>Builds a csv report with the timeline of the match and count of frags per player broken down by minute of gameplay</summary>
         static void BuildFragTimeline(List<Match> matches)
         {
             foreach (var match in matches)
@@ -124,6 +130,7 @@ namespace q2_dm_parser
             }
         }
 
+        /// <summary>Parses a line of text in the log and returns a frag (with killer, killed, if it's a suicide and weapon used)</summary>
         static Frag GetFrag(string line)
         {
             Frag frag = null;
@@ -198,6 +205,7 @@ namespace q2_dm_parser
             return frag;
         }
 
+        /// <summary>Generates the final score for each match from the list provided</summary>
         static void GenerateMapStats(List<Match> matches)
         {
             string reportFile = string.Format("{0}{1}-{2}.txt", reportsFolder, "report", DateTime.Now.ToString("yyyy-MM-dd-hhmmssffff"));
@@ -224,6 +232,7 @@ namespace q2_dm_parser
             }
         }
 
+        /// <summary>Generates the player stats (count of frags/suicides by weapon) for each match in the list provided</summary>
         static void GenerateWeaponStats(List<Match> matches)
         {
             string reportFile = string.Format("{0}{1}-{2}.txt", reportsFolder, "weapon-stats", DateTime.Now.ToString("yyyy-MM-dd-hhmmssffff"));
@@ -286,6 +295,7 @@ namespace q2_dm_parser
             }
         }
 
+        /// <summary>Generates the killer vs killed stats for each match from the list provided</summary>
         static void GenerateOpponentStats(List<Match> matches)
         {
             var frags = matches.SelectMany(a => a.Players).SelectMany(b => b.Frags).ToList();
