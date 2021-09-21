@@ -9,8 +9,8 @@ namespace q2_dm_parser
 {
     class Program
     {
-        const string logFile = @"/Users/lmatto1/temp/q2/openffa1.log";
-        const string reportsFolder = @"/Users/lmatto1/temp/";
+        const string logFile = @"d:\temp\openffa1.log";
+        const string reportsFolder = @"d:\temp\reports\";
 
         static void Main(string[] args)
         {
@@ -100,28 +100,26 @@ namespace q2_dm_parser
                 string reportFile = string.Format("{0}{1}-{2}-{3}.csv", reportsFolder, "timeline-report", match.Map, DateTime.Now.ToString("yyyy-MM-dd-hhmmssffff"));
                 using StreamWriter report = new(reportFile, append: true);
 
-                var frags = match.Players.SelectMany(a => a.Frags).ToList();
-
-                DateTime[] timeline = frags.Select(b => b.Timestamp).Distinct().OrderBy(c => c).ToArray();
+                DateTime[] timeline = match.Players.SelectMany(a => a.Frags).Select(b => b.Timestamp).Distinct().OrderBy(c => c).ToArray();
 
                 report.WriteLine(string.Concat("Player,", string.Join(',', timeline)));
 
-                foreach (string player in frags.Select(a => a.Killer).Distinct().OrderBy(b => b))
+                foreach (var player in match.Players.OrderByDescending(a => a.FragCount))
                 {
                     Dictionary<DateTime, int> tl = new Dictionary<DateTime, int>();
                     int fragCount = 0;
 
                     foreach (DateTime timestamp in timeline)
                     {
-                        var kills = frags.Where(a => a.Killer == player && a.Timestamp == timestamp && !a.isSuicide).Count();
-                        var suicides = frags.Where(a => a.Killer == player && a.Timestamp == timestamp && a.isSuicide).Count();
+                        var kills = player.Frags.Where(a => a.Killer == player.Nick && a.Timestamp == timestamp && !a.isSuicide).Count();
+                        var suicides = player.Frags.Where(a => a.Killer == player.Nick && a.Timestamp == timestamp && a.isSuicide).Count();
 
                         fragCount += kills - suicides;
 
                         tl.Add(timestamp, fragCount);
                     }
 
-                    report.WriteLine(string.Concat(player, ",", string.Join(',', tl.Values)));
+                    report.WriteLine(string.Concat(player.Nick, ",", string.Join(',', tl.Values)));
                 }
             }
         }
@@ -189,6 +187,7 @@ namespace q2_dm_parser
                     frag = new Frag();
                     frag.Timestamp = Convert.ToDateTime(match.Groups[1].Value);
                     frag.Killer = match.Groups[2].Value;
+                    frag.Killed = string.Empty;
                     frag.Weapon = item.Value;
                     frag.isSuicide = true;
 
@@ -253,7 +252,7 @@ namespace q2_dm_parser
                         report.WriteLine("==================");
 
                         //frags
-                        Dictionary<string, int> weapon = player.Frags.Where(z => !z.isSuicide)
+                        Dictionary<string, int> weapon = player.Frags.Where(z => !z.isSuicide && z.Killer == player.Nick)
                             .GroupBy(a => a.Weapon)
                             .ToDictionary(b => b.Key, b => b.Count());
                         
@@ -267,7 +266,7 @@ namespace q2_dm_parser
                         }
 
                         //suicides
-                        weapon = player.Frags.Where(z => z.isSuicide)
+                        weapon = player.Frags.Where(z => z.isSuicide && z.Killer == player.Nick)
                             .GroupBy(a => a.Weapon)
                             .ToDictionary(b => b.Key, b => b.Count());
                         
@@ -290,6 +289,7 @@ namespace q2_dm_parser
         static void GenerateOpponentStats(List<Match> matches)
         {
             var frags = matches.SelectMany(a => a.Players).SelectMany(b => b.Frags).ToList();
+            var players = matches.SelectMany(a => a.Players).ToList();
 
             Console.WriteLine("Creating opponent report");
             string reportFile = string.Format("{0}{1}-{2}.csv", reportsFolder, "opponent-report", DateTime.Now.ToString("yyyy-MM-dd-hhmmssffff"));
@@ -302,7 +302,7 @@ namespace q2_dm_parser
             
             foreach (var player in frags.Select(a => a.Killer).Distinct().OrderBy(b => b))
             {
-                Dictionary<string, int> opponents = frags.Where(a => a.Killer == player && !string.IsNullOrEmpty(a.Killed))
+                Dictionary<string, int> opponents = players.Where(a => a.Nick == player).SelectMany(b => b.Frags).Where(c => c.Killed != player)
                     .GroupBy(b => b.Killed)
                     .ToDictionary(c => c.Key, c => c.Count());
                 
